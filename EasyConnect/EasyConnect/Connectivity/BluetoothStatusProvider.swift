@@ -47,6 +47,7 @@ internal class BluetoothStatusProvider : NSObject, BluetoothStatusProviderType {
         let btQueue = DispatchQueue(label: "BT_queue")
         central = CBCentralManager(delegate: self, queue: btQueue, options: nil)
     }
+    
 
 }
 
@@ -55,6 +56,13 @@ extension BluetoothStatusProvider: CBCentralManagerDelegate {
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         status = BluetoothStatus(powerOn: isPoweredOn(central),
                           authorization: autorizationFor(central))
+    }
+    
+    func centralManager(_ central: CBCentralManager,
+                        didDiscover peripheral: CBPeripheral,
+                        advertisementData: [String : Any],
+                        rssi RSSI: NSNumber) {
+    
     }
 
 }
@@ -72,6 +80,11 @@ extension BluetoothStatusProvider {
 protocol CBCentralManagerProtocol {
     var authorization: CBManagerAuthorization { get }
     var state: CBManagerState { get }
+    func connect(
+        _ peripheral: CBPeripheral,
+        options: [String : Any]?
+    )
+    func cancelPeripheralConnection(_ peripheral: CBPeripheral)
 }
 
 extension CBCentralManager: CBCentralManagerProtocol {}

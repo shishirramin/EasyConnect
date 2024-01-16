@@ -47,11 +47,15 @@ public class ConnectivityHub: ConnectivityHubType {
         //implement actual method here
     }
     
+    public func pair() {
+        
+    }
+    
     public func cancelPairingRequest() {
         //implement actual method here
     }
     
     public func startScan(config: ConnectivityConfigurations) {
-        //implement actual method here
+        bleStatusProvider.startNotifying()
     }
 }
