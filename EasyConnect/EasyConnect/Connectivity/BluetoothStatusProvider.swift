@@ -8,24 +8,8 @@
 import CoreBluetooth
 import Combine
 
-internal protocol BluetoothStatusProviderType {
-    var statusPublisher: AnyPublisher <BluetoothStatus, Never> { get }
-    func startNotifying()
-}
-
-struct BluetoothStatus {
-    public var powerOn: Bool = false
-    public var authorization: BleAuthorization = .notDetermined
-}
-
-public enum BleAuthorization : Int {
-    case notDetermined
-    case denied
-    case allowedAlways
-}
-
 internal class BluetoothStatusProvider : NSObject, BluetoothStatusProviderType {
-    internal var central: CBCentralManagerProtocol?
+    internal var central: CBCentralAutorizationProviderType
     var status = BluetoothStatus() {
         didSet {
             statusChangeEvents.send(status)
@@ -35,36 +19,24 @@ internal class BluetoothStatusProvider : NSObject, BluetoothStatusProviderType {
     private var statusChangeEvents: PassthroughSubject <BluetoothStatus, Never>
 
     override init() {
+        central = CBCentralProvider.shared
         statusChangeEvents = PassthroughSubject<BluetoothStatus, Never>()
         statusPublisher = statusChangeEvents.eraseToAnyPublisher()
         super.init()
+        central.delegate = self
     }
 
     func startNotifying() {
-        guard central == nil else {
-            return
-        }
-        let btQueue = DispatchQueue(label: "BT_queue")
-        central = CBCentralManager(delegate: self, queue: btQueue, options: nil)
+        central.startNotifying()
     }
-    
 
 }
 
-extension BluetoothStatusProvider: CBCentralManagerDelegate {
-
-    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+extension BluetoothStatusProvider: AutorizationProtocol {
+    func didUpdate(central: CBCentralManagerProtocol) {
         status = BluetoothStatus(powerOn: isPoweredOn(central),
-                          authorization: autorizationFor(central))
+                                           authorization: autorizationFor(central))
     }
-    
-    func centralManager(_ central: CBCentralManager,
-                        didDiscover peripheral: CBPeripheral,
-                        advertisementData: [String : Any],
-                        rssi RSSI: NSNumber) {
-    
-    }
-
 }
 
 extension BluetoothStatusProvider {
@@ -77,35 +49,9 @@ extension BluetoothStatusProvider {
     }
 }
 
-protocol CBCentralManagerProtocol {
-    var authorization: CBManagerAuthorization { get }
-    var state: CBManagerState { get }
-    func connect(
-        _ peripheral: CBPeripheral,
-        options: [String : Any]?
-    )
-    func cancelPeripheralConnection(_ peripheral: CBPeripheral)
-}
-
-extension CBCentralManager: CBCentralManagerProtocol {}
-
-extension CBManagerAuthorization {
-    func autorization() -> BleAuthorization{
-        let authorization : BleAuthorization
-        switch self {
-        case .allowedAlways:
-            authorization = .allowedAlways
-        case .notDetermined:
-            authorization = .notDetermined
-        default:
-            authorization = .denied
-        }
-        return authorization
-    }
-}
-
 public struct CentralManagerStatus: Equatable {
     public var state: Bool = false
     public var authorization: BleAuthorization = .notDetermined
     public var isScanning: Bool = false
 }
+
