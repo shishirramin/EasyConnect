@@ -21,6 +21,23 @@ class CBCentralProvider: NSObject, CBCentralProviderType {
         central = CBCentralManager(delegate: self, queue: btQueue, options: nil)
     }
 
+    func scan() {
+        central?.scanForPeripherals(withServices: nil,
+                                    options: nil)
+    }
+
+    func connect(pheriperal: CBPeripheral) {
+        central?.connect(pheriperal,
+                         options: nil)
+    }
+
+    func unpair(pheriperal: CBPeripheral) {
+        central?.cancelPeripheralConnection(pheriperal)
+    }
+
+    func stopScan() {
+        central?.stopScan()
+    }
 }
 
 extension CBCentralProvider: CBCentralManagerDelegate {
@@ -34,5 +51,22 @@ extension CBCentralProvider: CBCentralManagerDelegate {
                         advertisementData: [String : Any],
                         rssi RSSI: NSNumber) {
         connectionDelegate?.didDiscover(peripheral: peripheral)
+    }
+    
+    func centralManager(_ central: CBCentralManager,
+                        didConnect peripheral: CBPeripheral) {
+        connectionDelegate?.didConnect(peripheral: peripheral)
+    }
+    
+    func centralManager(_ central: CBCentralManager,
+                        didFailToConnect peripheral: CBPeripheral,
+                        error: Error?) {
+        connectionDelegate?.didFailToConnect(peripheral: peripheral)
+    }
+    
+    func centralManager(_ central: CBCentralManager,
+                        didDisconnectPeripheral peripheral: CBPeripheral,
+                        error: Error?) {
+        connectionDelegate?.didDisconnect(peripheral: peripheral)
     }
 }

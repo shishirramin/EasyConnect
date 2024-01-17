@@ -25,8 +25,9 @@ public struct ConnectivityConfigurations: Equatable {
 
 public protocol ConnectivityHubType {
     func stopScan()
-    func cancelPairingRequest()
+    func cancelPairingRequest(peripheral: CBPeripheral)
     func startScan(config: ConnectivityConfigurations)
+    func pair(peripheral: CBPeripheral)
     var  bleStatus: CentralManagerStatus { get }
     var  configuration: ConnectivityConfigurations { get set }
 }
@@ -36,13 +37,16 @@ public class ConnectivityHub: ConnectivityHubType {
     public var pheripheralList: [CBPeripheral] = []
     public static let shared = ConnectivityHub()
     public var bleStatus: CentralManagerStatus
-    lazy var bleStatusProvider: BluetoothStatusProviderType = BluetoothStatusProvider()
-    lazy var deviceStatusProvider: DevicePublisherType = DeviceStatusProvider()
+    
     private var centralManagerStatusEvents: PassthroughSubject <CentralManagerStatus, Never>
     public var centralManagerStatusPublisher: AnyPublisher <CentralManagerStatus, Never>
-    private var cancellableSet: Set<AnyCancellable> = []
     public var centralDiscoveryPublisher: AnyPublisher <(CentralDiscoveryEventType, [CBPeripheral]), Never>
     private var centralDiscoveryEvents: PassthroughSubject <(CentralDiscoveryEventType, [CBPeripheral]), Never>
+    private var scanTimer: Timer?
+    private var cancellableSet: Set<AnyCancellable> = []
+
+    lazy var bleStatusProvider: BluetoothStatusProviderType = BluetoothStatusProvider()
+    lazy var deviceStatusProvider: DeviceStatusProviderType = DeviceStatusProvider()
 
     init(bleStatus:CentralManagerStatus = CentralManagerStatus(),
          configuration: ConnectivityConfigurations = ConnectivityConfigurations()) {
@@ -52,6 +56,7 @@ public class ConnectivityHub: ConnectivityHubType {
         centralManagerStatusPublisher = centralManagerStatusEvents.eraseToAnyPublisher()
         centralDiscoveryEvents = PassthroughSubject<(CentralDiscoveryEventType, [CBPeripheral]), Never>()
         centralDiscoveryPublisher = centralDiscoveryEvents.eraseToAnyPublisher()
+        bleStatusProvider.startNotifying()
         subscribeCentralManager()
     }
 
@@ -85,18 +90,37 @@ public class ConnectivityHub: ConnectivityHubType {
     }
     
     public func stopScan() {
-        //implement actual method here
+        guard bleStatus.isScanning  else {
+            return
+        }
+        bleStatus.isScanning = false
+        deviceStatusProvider.stopScan()
     }
     
-    public func pair() {
-        
+    public func pair(peripheral: CBPeripheral) {
+        deviceStatusProvider.connect(peripheral)
     }
     
-    public func cancelPairingRequest() {
-        //implement actual method here
+    public func cancelPairingRequest(peripheral: CBPeripheral) {
+        deviceStatusProvider.cancelPeripheralConnection(peripheral)
     }
     
     public func startScan(config: ConnectivityConfigurations) {
+        bleStatus.isScanning = true
         bleStatusProvider.startNotifying()
+        resetTimer()
+        deviceStatusProvider.scanForPeripherals()
+    }
+    
+    // start a timer and stop scan on scan timeout
+    private func resetTimer() {
+        scanTimer?.invalidate()
+        guard configuration.scanTimeOut else {
+            return
+        }
+        let timeoutInterval = configuration.scanDuration
+        scanTimer = Timer.scheduledTimer(withTimeInterval: timeoutInterval, repeats: false) { [weak self] _ in
+            self?.stopScan()
+        }
     }
 }

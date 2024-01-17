@@ -13,3 +13,11 @@ public enum CentralDiscoveryEventType {
     ///didRemove event
     case didRemove
 }
+
+/// Enum for device Discovery Event Type
+public enum DeviceStatusEventType {
+    ///connect event
+    case connected
+    ///disconnect event
+    case disconnected
+}

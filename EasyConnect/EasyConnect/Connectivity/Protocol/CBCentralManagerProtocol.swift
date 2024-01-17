@@ -14,6 +14,9 @@ protocol CBCentralManagerProtocol {
         _ peripheral: CBPeripheral,
         options: [String : Any]?
     )
+    func scanForPeripherals(withServices serviceUUIDs: [CBUUID]?,
+                            options: [String : Any]?)
+    func stopScan()
     func cancelPeripheralConnection(_ peripheral: CBPeripheral)
 }
 
