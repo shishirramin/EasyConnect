@@ -51,12 +51,17 @@ internal class DeviceStatusProvider : NSObject, DeviceStatusProviderType {
     func cancelPeripheralConnection(_ peripheral: CBPeripheral) {
         central.unpair(pheriperal: peripheral)
     }
+    
+    func removeUnPairedDevice() {
+        applianceList.removeAll(where: {  ($0.state != .connected || $0.state != .connecting) })
+        centralDiscoveryEvents.send((.didRemove,applianceList))
+    }
 }
 
 extension DeviceStatusProvider: DeviceConnectionProtocol {
     //Save the peripheral when the device is paired
     func didConnect(peripheral: CBPeripheral) {
-        deviceStorage.save(peripheral)
+//        deviceStorage.save(peripheral)
         deviceEvents.send((.connected,peripheral))
     }
     
@@ -71,6 +76,7 @@ extension DeviceStatusProvider: DeviceConnectionProtocol {
     }
 
     func didDiscover(peripheral: CBPeripheral) {
+        applianceList.append(peripheral)
         centralDiscoveryEvents.send((.didAdd,applianceList))
     }
     

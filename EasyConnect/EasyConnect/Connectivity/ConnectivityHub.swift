@@ -11,27 +11,6 @@ import Foundation
 import Combine
 import CoreBluetooth
 
-public struct ConnectivityConfigurations: Equatable {
-    public let scanTimeOut: Bool
-    public let scanDuration: Double
-    public init(
-        scanTimeOut: Bool = true,
-        scanDuration: Double = TimeInterval(120)
-    ) {
-        self.scanTimeOut = scanTimeOut
-        self.scanDuration = scanDuration
-    }
-}
-
-public protocol ConnectivityHubType {
-    func stopScan()
-    func cancelPairingRequest(peripheral: CBPeripheral)
-    func startScan(config: ConnectivityConfigurations)
-    func pair(peripheral: CBPeripheral)
-    var  bleStatus: CentralManagerStatus { get }
-    var  configuration: ConnectivityConfigurations { get set }
-}
-
 public class ConnectivityHub: ConnectivityHubType {
     public var configuration: ConnectivityConfigurations
     public var pheripheralList: [CBPeripheral] = []
@@ -42,6 +21,8 @@ public class ConnectivityHub: ConnectivityHubType {
     public var centralManagerStatusPublisher: AnyPublisher <CentralManagerStatus, Never>
     public var centralDiscoveryPublisher: AnyPublisher <(CentralDiscoveryEventType, [CBPeripheral]), Never>
     private var centralDiscoveryEvents: PassthroughSubject <(CentralDiscoveryEventType, [CBPeripheral]), Never>
+    private var deviceStatusEvents: PassthroughSubject <(DeviceStatusEventType,CBPeripheral), Never>
+    public var deviceStatusPublisher: AnyPublisher <(DeviceStatusEventType, CBPeripheral), Never>
     private var scanTimer: Timer?
     private var cancellableSet: Set<AnyCancellable> = []
 
@@ -56,14 +37,25 @@ public class ConnectivityHub: ConnectivityHubType {
         centralManagerStatusPublisher = centralManagerStatusEvents.eraseToAnyPublisher()
         centralDiscoveryEvents = PassthroughSubject<(CentralDiscoveryEventType, [CBPeripheral]), Never>()
         centralDiscoveryPublisher = centralDiscoveryEvents.eraseToAnyPublisher()
-        bleStatusProvider.startNotifying()
+        deviceStatusEvents = PassthroughSubject<(DeviceStatusEventType, CBPeripheral), Never>()
+        deviceStatusPublisher = deviceStatusEvents.eraseToAnyPublisher()
         subscribeCentralManager()
+        
+        //start notify only if device is present in the list, to auto connect
+        if !pheripheralList.isEmpty{
+            bleStatusProvider.startNotifying()
+        }
     }
 
     func subscribeCentralManager() {
         deviceStatusProvider.centralDiscoveryPublisher.sink { [weak self] eventType, appliances  in
             self?.handleDiscoveryEvent(eventType, appliances)
             self?.centralDiscoveryEvents.send((eventType, appliances))
+        }
+        .store(in: &cancellableSet)
+    
+        deviceStatusProvider.devicePublisher.sink { [weak self] eventType, appliance  in
+            self?.handleDeviceEvent(eventType, appliance)
         }
         .store(in: &cancellableSet)
     
@@ -80,9 +72,17 @@ public class ConnectivityHub: ConnectivityHubType {
             pheripheralList.append(contentsOf: appliances)
         } else {
             pheripheralList.removeAll { appliance in
-                pheripheralList.contains { $0.identifier == appliance.identifier }
+                appliances.contains { $0.identifier == appliance.identifier }
             }
         }
+    }
+
+    private func handleDeviceEvent(_ eventType: DeviceStatusEventType,
+                                      _ appliance: CBPeripheral) {
+        if eventType == .disconnected {
+            pheripheralList.removeAll { $0.identifier == appliance.identifier }
+        }
+        self.deviceStatusEvents.send((eventType, appliance))
     }
 
     private func updateBleStatus() {
@@ -110,6 +110,24 @@ public class ConnectivityHub: ConnectivityHubType {
         bleStatusProvider.startNotifying()
         resetTimer()
         deviceStatusProvider.scanForPeripherals()
+    }
+    
+    public func autoConnect() {
+        guard bleStatus.state,
+              !bleStatus.isScanning else {
+            return
+        }
+        pheripheralList.forEach { device in
+            deviceStatusProvider.connect(device)
+        }
+    }
+    
+    public func removeUnPairedDevice() {
+        deviceStatusProvider.removeUnPairedDevice()
+    }
+    
+    public func pheripheralWith(_ identifier: String) -> CBPeripheral? {
+        return pheripheralList.first(where: { $0.identifier.uuidString == identifier })
     }
     
     // start a timer and stop scan on scan timeout

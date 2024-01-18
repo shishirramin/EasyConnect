@@ -24,5 +24,6 @@ internal protocol DeviceStatusProviderType:  DevicePublisherType {
     func connect(_ peripheral: CBPeripheral)
     func scanForPeripherals()
     func stopScan()
+    func removeUnPairedDevice()
     func cancelPeripheralConnection(_ peripheral: CBPeripheral)
 }
