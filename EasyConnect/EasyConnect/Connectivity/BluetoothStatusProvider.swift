@@ -8,6 +8,7 @@
 import CoreBluetooth
 import Combine
 
+///Class which provides update on bluetooth state changes and Autorization
 internal class BluetoothStatusProvider : NSObject, BluetoothStatusProviderType {
     internal var central: CBCentralAutorizationProviderType
     var status = BluetoothStatus() {

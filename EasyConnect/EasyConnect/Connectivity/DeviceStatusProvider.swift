@@ -8,6 +8,7 @@
 import CoreBluetooth
 import Combine
 
+///Class which can perform device operation like connect, disconnect, scan
 internal class DeviceStatusProvider : NSObject, DeviceStatusProviderType {
     
     var devicePublisher: AnyPublisher<(DeviceStatusEventType, CBPeripheral), Never>

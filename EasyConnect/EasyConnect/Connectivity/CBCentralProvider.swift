@@ -7,6 +7,7 @@
 
 import CoreBluetooth
 
+///Class which is a wrapper of CBCentral Manager
 class CBCentralProvider: NSObject, CBCentralProviderType {
     public static let shared = CBCentralProvider()
     internal var central: CBCentralManagerProtocol?

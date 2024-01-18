@@ -11,6 +11,8 @@ import Foundation
 import Combine
 import CoreBluetooth
 
+/// A Class which is backbone of discovering device, autorizing bluetooth and  connecting to deivice
+
 public class ConnectivityHub: ConnectivityHubType {
     public var configuration: ConnectivityConfigurations
     public var pheripheralList: [CBPeripheral] = []
@@ -47,6 +49,7 @@ public class ConnectivityHub: ConnectivityHubType {
         }
     }
 
+    ///Listen to the events 
     func subscribeCentralManager() {
         deviceStatusProvider.centralDiscoveryPublisher.sink { [weak self] eventType, appliances  in
             self?.handleDiscoveryEvent(eventType, appliances)
